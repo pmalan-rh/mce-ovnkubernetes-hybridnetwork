@@ -1,0 +1,66 @@
+:icons: font
+
+= Configuring OVNKubernetes with Hybrid Networking using the Multi Cluster Engine
+
+== Preparation
+
+Go through the steps to create a new cluster, up to the point 3, where you save the cluster configuration.
+
+All the CRDs will be generated in a namespace called the name of your cluster.
+
+The following CRDs will be created:
+- ClusterDeployment
+- AgentClusterInstall
+- Secret (pull secret)
+- ManagedCluster
+- KlusterAddonConfig
+
+=== Adding additional metadata manifests
+
+==== Create yaml as per documentation
+
+Create the following file:
+
+cluster-network-03-config.yaml
+----
+apiVersion: operator.openshift.io/v1
+kind: Network
+metadata:
+  creationTimestamp: null
+  name: cluster
+spec:
+  clusterNetwork:
+  - cidr: 10.128.0.0/14
+    hostPrefix: 23
+  externalIP:
+    policy: {}
+  networkType: OVNKubernetes
+  serviceNetwork:
+  - 172.30.0.0/16
+  defaultNetwork:
+    type: OVNKubernetes
+    ovnKubernetesConfig:
+      hybridOverlayConfig:
+        hybridClusterNetwork:
+        - cidr: 10.132.0.0/14
+          hostPrefix: 23
+        # Not supported with Windows 2019 LTSC
+        hybridOverlayVXLANPort: 9898
+----
+
+Create a configMap from the network configuration, in the namespace (cluster name):
+
+----
+oc project os1
+oc create configmap cluster-manifests --from-file=cluster-network-03-config.yaml=cluster-network-03-config.yaml
+----
+
+Change your cluster's AgentClusterInstall to refrence the newly added configMap:
+----
+AgentClusterInstall
+  spec:
+....
+    manifestsConfigMapsRefs:
+      - name: cluster-manifests
+....
+----
